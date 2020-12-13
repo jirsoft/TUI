@@ -33,17 +33,19 @@
 'FUNCTION TUIgetParent(s AS STRING) AS STRING
   'helper for file selector
 
-'FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING
-  '(almost) complete file selector
-
 'FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
   'once-shot file selector
+  'ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
+
+'FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING
+  '(almost) complete file selector
+  'ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
 
 'SUB TUIwaitForKey
 'SUB TUIwaitForNoKey
   'waits for key or until no key pressed
 
-CONST VERSION.TUI = "0.20"
+CONST VERSION.TUI = "0.30"
 DIM INTEGER ON.TUI, X.TUI, Y.TUI, W.TUI, H.TUI 'for screenshot
 
 CONST CURSOR_SPEED.TUI = 300 'cursor blinking speed in ms
@@ -243,93 +245,6 @@ FUNCTION TUIquestion(title AS STRING, txt AS STRING) AS INTEGER
   BLIT WRITE #5,dx,dy
   BLIT CLOSE #5
   TUIquestion = (k=ENTER.TUI)
-END FUNCTION
-
-FUNCTION TUIinput(title AS STRING, txt AS STRING, def AS STRING, en AS STRING) AS STRING
-  'Input string, returns text, DEL erase all, BACKSPACE 1 char, ENTER to finish (BLIT #6)
- 
-  FONT FONT.TUI
-  LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
-  LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
-  LOCAL INTEGER w = 4*fow + fow*MAX(LEN(title),LEN(txt),LEN(def),23) 'minimum 8 chars
-  LOCAL INTEGER h = 6*foh, change = 0
-  LOCAL STRING k = ""
-  LOCAL INTEGER dx = (MM.HRES-w)\2, dy = (MM.VRES-h)\2 
-  LOCAL INTEGER cursorX, cursorY, cursorON, cursorINT
-
-  BLIT READ #6,dx,dy,w,h 
-
-  TUIinput = def
-  BOX dx+0,dy+0,w,h,0,BC.TUI,BC.TUI
-  BOX dx+fow/4,dy+foh/2,w-fow/2,h-foh*3/4,2,FC.TUI,BC.TUI
-  BOX dx+fow,dy+2.5*foh,w-2*fow,foh,0,IC.TUI, IC.TUI
-  TEXT dx+w\2,dy+1," " + title + " ","CT",,,FC.TUI,BC.TUI
-
-  TEXT dx+fow,dy+1+foh,txt,"LT",,,FC.TUI, BC.TUI
-  TEXT dx+fow,dy+2.5*foh,def,"LT",,,FC.TUI,IC.TUI
-  TEXT dx+fow,dy+h-3/2*foh,"Cancel","LT",,,BC.TUI,FC.TUI
-  TEXT dx+w - fow,dy+h-3/2*foh,"  OK  ","RT",,,BC.TUI,FC.TUI
-  ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
-
-  cursorX = dx+LEN(def)*fow: cursorY = dy+3.5*foh
-  IF LEN(def) < ((w-2*fow)\fow) THEN INC cursorX, fow
-
-  cursorON = 0: cursorINT = TIMER  
-  DO
-    IF TIMER-cursorINT > CURSOR_SPEED.TUI THEN
-      cursorON = 1 - cursorON
-      IF cursorON THEN
-        LINE cursorX, cursorY, cursorX + fow, cursorY,2,FC.TUI
-      ELSE
-        LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
-      ENDIF
-      cursorINT = TIMER
-    ENDIF
-    k = INKEY$
-    
-    SELECT CASE k
-      CASE CHR$(127)  'DEL, delete all
-        TUIinput = ""
-        change = 1
-        LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
-        cursorX = dx + fow
-         
-      CASE CHR$(8)    'BACKSPACE, delete last character
-        IF TUIinput<>"" THEN
-          IF LEN(TUIinput) < ((w-2*fow)\fow) THEN
-            LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
-            INC cursorX, -fow
-          ENDIF
-          TUIinput = LEFT$(TUIinput, LEN(TUIinput) - 1)
-          change = 1
-        ENDIF
-
-      CASE ELSE
-        IF INSTR(en,k)>0 THEN
-          IF LEN(TUIinput) < ((w-16)\8) THEN
-            TUIinput = TUIinput + k
-            change = 1
-            LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
-            IF LEN(TUIinput) < ((w-2*fow)\fow) THEN
-              INC cursorX, fow
-            ENDIF
-          ELSE
-            TUIinput = LEFT$(TUIinput, LEN(TUIinput)-1) + k
-            change = 1
-          ENDIF
-        ENDIF
-    END SELECT
-
-    IF change THEN
-      BOX dx+fow,dy+2.5*foh,w-2*fow,foh,0,IC.TUI, IC.TUI
-      TEXT dx+fow,dy+2.5*foh,TUIinput,"LT",,,FC.TUI,IC.TUI
-      change = 0
-    ENDIF
-  LOOP WHILE k<>ESC.TUI AND k<>ENTER.TUI 
-  ON.TUI = 0  
-  BLIT WRITE #6,dx,dy
-  BLIT CLOSE #6
-  IF k=ESC.TUI THEN TUIinput = ""
 END FUNCTION
 
 FUNCTION TUIselect(title AS STRING, txt AS STRING, s AS INTEGER) AS INTEGER
@@ -554,15 +469,39 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
   'once-shot file selector
 
   LOCAL STRING f
-  LOCAL INTEGER cnt = 0
+  LOCAL INTEGER i
+  LOCAL INTEGER cnt, cntExt = -1
 
+  FOR i = 1 TO LEN(ext)
+    IF FIELD$(ext, i, ",") <> "" THEN INC cnt
+  NEXT i
+  IF cnt > 0 THEN
+    LOCAL STRING ex(cnt)
+    FOR i = 1 TO LEN(ext)
+      IF FIELD$(ext, i, ",") <> "" THEN
+        INC cntExt
+        ex(cntExt) = UCASE$(FIELD$(ext, i, ","))
+      ENDIF
+    NEXT i
+  ELSE
+    ext = ""
+  ENDIF
+
+  cnt = 0
   f = DIR$("", ALL)
   DO WHILE f <> ""
     IF LEFT$(f, 1) <> "." THEN
-      IF UCASE$(RIGHT$(f, LEN(ext))) = UCASE$(ext) THEN  
+      IF MM.INFO(FILESIZE f) < 0 THEN
         INC cnt
-      ELSEIF MM.INFO(FILESIZE f) < 0 THEN
+      ELSEIF ext = "" THEN
         INC cnt
+      ELSE
+        FOR i = 0 TO cntExt
+          IF UCASE$(RIGHT$(f, LEN(ex(i)))) = ex(i) THEN
+            INC cnt
+            EXIT FOR
+          ENDIF
+        NEXT i
       ENDIF
     ENDIF
     f = DIR$()
@@ -586,9 +525,17 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
       IF MM.INFO(FILESIZE f) < 0 THEN
         INC cnt
         fn(cnt) = f + " <DIR>"
-      ELSEIF UCASE$(RIGHT$(f, LEN(ext))) = UCASE$(ext) THEN  
+      ELSEIF ext = "" THEN
         INC cnt
         fn(cnt) = f
+      ELSE
+        FOR i = 0 TO cntExt
+          IF UCASE$(RIGHT$(f, LEN(ex(i)))) = ex(i) THEN
+            INC cnt
+            fn(cnt) = f
+            EXIT FOR
+          ENDIF
+        NEXT i
       ENDIF
     ENDIF
     f = DIR$()
@@ -596,3 +543,135 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
   SORT fn(),,2
   TUIgetSelect = TUIgetItem("SELECT " + ext + " FILE", path, fn())
 END FUNCTION
+
+FUNCTION TUIinput(title AS STRING, txt AS STRING, def AS STRING, en AS STRING) AS STRING
+  'Input string, returns text, DEL erase all, BACKSPACE 1 char, ENTER to finish (BLIT #6)
+ 
+  FONT FONT.TUI
+  LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
+  LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
+  LOCAL INTEGER w = 4*fow + fow*MAX(LEN(title),LEN(txt),LEN(def),23) 'minimum 8 chars
+  LOCAL INTEGER h = 6*foh, change = 0
+  LOCAL STRING k = ""
+  LOCAL INTEGER dx = (MM.HRES-w)\2, dy = (MM.VRES-h)\2 
+  LOCAL INTEGER cursorX, cursorY, cursorON, cursorINT, charPos
+
+  BLIT READ #6,dx,dy,w,h 
+
+  TUIinput = def
+  BOX dx+0,dy+0,w,h,0,BC.TUI,BC.TUI
+  BOX dx+fow/4,dy+foh/2,w-fow/2,h-foh*3/4,2,FC.TUI,BC.TUI
+  BOX dx+fow,dy+2.5*foh,w-2*fow,foh,0,IC.TUI, IC.TUI
+  TEXT dx+w\2,dy+1," " + title + " ","CT",,,FC.TUI,BC.TUI
+
+  TEXT dx+fow,dy+1+foh,txt,"LT",,,FC.TUI, BC.TUI
+  TEXT dx+fow,dy+2.5*foh,def,"LT",,,FC.TUI,IC.TUI
+  TEXT dx+fow,dy+h-3/2*foh,"Cancel","LT",,,BC.TUI,FC.TUI
+  TEXT dx+w - fow,dy+h-3/2*foh,"  OK  ","RT",,,BC.TUI,FC.TUI
+  ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
+
+  cursorX = dx+LEN(def)*fow: cursorY = dy+3.5*foh
+  IF LEN(def) < ((w-2*fow)\fow) THEN INC cursorX, fow
+
+  cursorON = 0: cursorINT = TIMER  
+  DO
+    IF TIMER-cursorINT > CURSOR_SPEED.TUI THEN
+      cursorON = 1 - cursorON
+      IF cursorON THEN
+        LINE cursorX, cursorY, cursorX + fow, cursorY,2,FC.TUI
+      ELSE
+        LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
+      ENDIF
+      cursorINT = TIMER
+    ENDIF
+    k = INKEY$
+    
+    SELECT CASE k
+      CASE CHR$(127)  'DEL, delete all
+        TUIinput = ""
+        change = 1
+        LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
+        cursorX = dx + fow
+         
+      CASE CHR$(8)    'BACKSPACE, delete last character
+        charPos = (cursorX - dx)\fow          
+        IF TUIinput<>"" AND charPos > 1 THEN
+          TUIinput = LEFT$(TUIinput, charPos - 2) + MID$(TUIinput, charPos)
+          LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
+          INC cursorX, -fow
+          change = 1
+        ENDIF
+
+      CASE CHR$(130)    'LEFT
+        IF cursorX > dx + fow THEN
+          LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
+          INC cursorX, -fow
+        ENDIF
+
+      CASE CHR$(131)    'RIGHT
+        IF cursorX <= dx + fow*LEN(TUIinput) THEN
+          LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
+          INC cursorX, fow
+          IF cursorX > dx+w-2*fow THEN
+            INC cursorX, -fow
+          ENDIF
+        ENDIF
+
+      CASE ELSE
+        IF INSTR(en,k)>0 THEN
+          charPos = (cursorX - dx)\fow          
+          IF LEN(TUIinput) < (w\fow - 2) THEN
+            TUIinput = LEFT$(TUIinput, charPos - 1) + k + MID$(TUIinput, charPos)
+            change = 1
+            LINE cursorX, cursorY, cursorX + fow, cursorY,2,BC.TUI
+            IF cursorX < dx+w-2*fow THEN
+              INC cursorX, fow
+            ENDIF
+          ENDIF
+        ENDIF
+    END SELECT
+
+    IF change THEN
+      BOX dx+fow,dy+2.5*foh,w-2*fow,foh,0,IC.TUI, IC.TUI
+      TEXT dx+fow,dy+2.5*foh,TUIinput,"LT",,,FC.TUI,IC.TUI
+      change = 0
+    ENDIF
+  LOOP WHILE k<>ESC.TUI AND k<>ENTER.TUI 
+  ON.TUI = 0  
+  BLIT WRITE #6,dx,dy
+  BLIT CLOSE #6
+  IF k=ESC.TUI THEN TUIinput = ""
+END FUNCTION
+
+FUNCTION TUIemptyON(title AS STRING, w AS INTEGER, h AS INTEGER) AS STRING
+  'Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)
+
+  FONT FONT.TUI
+  LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
+  LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
+  w = MAX(4*fow + fow*LEN(title), 2*fow + w) 'minimum width
+  h = 3*foh+h
+  LOCAL INTEGER dx = (MM.HRES-w)\2, dy = (MM.VRES-h)\2 
+  
+  BLIT READ #9,dx,dy,w,h 
+  BOX dx+0,dy+0,w,h,0,BC.TUI,BC.TUI
+  BOX dx+fow/4,dy+foh/2,w-fow/2,h-foh*3/4,2,FC.TUI,BC.TUI
+  TEXT dx+w\2,dy+1," " + title + " ","CT",,,FC.TUI,BC.TUI
+  TEXT dx+w\2,dy+h-3/2*foh,"  OK  ","CT",,,BC.TUI,FC.TUI
+  ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
+
+  TUIemptyON = STR$(dx) + "," + STR$(dy) + "," + STR$(dx + fow) + "," + STR$(dy + foh + 1)
+END FUNCTION
+
+SUB TUIemptyOFF(coord AS STRING)
+  'Close empty (BLIT #9)
+
+  LOCAL INTEGER dx = VAL(FIELD$(coord,1,","))
+  LOCAL INTEGER dy = VAL(FIELD$(coord,2,","))
+
+  ON.TUI = 0  
+  BLIT WRITE #9, dx, dy
+  BLIT CLOSE #9
+END SUB
+
+
