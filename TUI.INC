@@ -45,7 +45,7 @@
 'SUB TUIwaitForNoKey
   'waits for key or until no key pressed
 
-CONST VERSION.TUI = "0.31"
+CONST VERSION.TUI = "0.32"
 DIM INTEGER ON.TUI, X.TUI, Y.TUI, W.TUI, H.TUI 'for screenshot
 
 CONST CURSOR_SPEED.TUI = 300 'cursor blinking speed in ms
@@ -53,7 +53,6 @@ CONST ESC.TUI = CHR$(27), ENTER.TUI = CHR$(10)
 DIM STRING TICK.TUI = CHR$(232) 'tick character
 DIM INTEGER BC.TUI = RGB(YELLOW), FC.TUI = RGB(GRAY), IC.TUI = RGB(CYAN) 'default colors
 DIM INTEGER FONT.TUI = 8 'default font
-DIM INTEGER PG1_EN.TUI = 1 'PAGE 1 enabled for buffering
 
 SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1)
@@ -85,8 +84,7 @@ SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
   
 
-  DO:LOOP WHILE INKEY$="" 
-  DO:LOOP WHILE INKEY$<>"" 
+  TUIwaitForKey
   ON.TUI = 0  
   BLIT WRITE #1,dx,dy
   BLIT CLOSE #1
@@ -209,8 +207,7 @@ SUB TUIwarning(title AS STRING, txt AS STRING)
   TEXT dx+w\2,dy+h-3/2*foh,"  OK  ","CT",,,BC.TUI,FC.TUI
   ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
 
-  DO:LOOP WHILE INKEY$="" 
-  DO:LOOP WHILE INKEY$<>"" 
+  TUIwaitForKey
   ON.TUI = 0  
   BLIT WRITE #4,dx,dy
   BLIT CLOSE #4
@@ -315,7 +312,7 @@ END FUNCTION
 
 SUB TUIwaitForKey
   DO:LOOP WHILE INKEY$=""
-  DO:LOOP WHILE INKEY$<>""
+  TUIwaitForNoKey
 END SUB
 
 SUB TUIwaitForNoKey
@@ -330,10 +327,10 @@ FUNCTION TUIgetItem(title AS STRING, subtitle AS STRING, txt() AS STRING) AS STR
   LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
   LOCAL INTEGER w = 4*fow + fow * MAX(LEN(title),13)
   LOCAL INTEGER h = foh, i
-  LOCAL INTEGER m = BOUND(txt()), curs = 0, position = 0, ww = 0
+  LOCAL INTEGER m = BOUND(txt()), curs = 1, position = 0, ww = 0
   LOCAL INTEGER maxItems = MIN((MM.VRES \ foh) - 7, m)
-  LOCAL INTEGER pbMax = foh * (1 + m)
-  LOCAL INTEGER pbWin = foh * (1 + maxItems)
+  LOCAL INTEGER pbMax = foh * m
+  LOCAL INTEGER pbWin = foh * maxItems
   LOCAL INTEGER pbLen = pbWin / pbMax * pbWin
   LOCAL INTEGER running = 1, prev = -1, prevCurs = -1
   LOCAL STRING k
@@ -344,7 +341,7 @@ FUNCTION TUIgetItem(title AS STRING, subtitle AS STRING, txt() AS STRING) AS STR
   TUIgetItem = ""
 
   w = MAX(4*fow + fow * LEN(subtitle), w)  
-  FOR i = 0 TO m
+  FOR i = 1 TO m
     IF LEN(txt(i)) > ((MM.HRES\fow)-2) THEN 
       txt(i) = LEFT$(txt(i),(MM.HRES\fow)-2)
     ENDIF
@@ -366,26 +363,17 @@ FUNCTION TUIgetItem(title AS STRING, subtitle AS STRING, txt() AS STRING) AS STR
 
   DO WHILE running
     IF position <> prev OR curs <> prevCurs THEN
-      IF PG1_EN.TUI  THEN
-        PAGE WRITE 1
-        BLIT dx, dy, dx, dy, w, h, 0
-      ENDIF
-      FOR i = 0 TO MIN(m, maxItems)
+      FOR i = 1 TO MIN(m, maxItems)
         IF i+position = curs THEN
-          TEXT dx+fow,dy+2.5*foh+foh*i,txt(position + i) + SPACE$(ww - LEN(txt(position + i))),"LT",,,BC.TUI,FC.TUI
+          TEXT dx+fow,dy+1.5*foh+foh*i,txt(position + i) + SPACE$(ww - LEN(txt(position + i))),"LT",,,BC.TUI,FC.TUI
           TUIgetItem = txt(position + i)
         ELSE
-          TEXT dx+fow,dy+2.5*foh+foh*i,txt(position + i) + SPACE$(ww - LEN(txt(position + i))),"LT",,,FC.TUI,BC.TUI
+          TEXT dx+fow,dy+1.5*foh+foh*i,txt(position + i) + SPACE$(ww - LEN(txt(position + i))),"LT",,,FC.TUI,BC.TUI
         ENDIF
       NEXT i
       IF m > maxItems THEN
         BOX dx + w - 2*fow, dy + 2.5*foh, fow, pbWin, 1, FC.TUI, BC.TUI
         BOX dx + w - 2*fow, dy + 2.5*foh + position * pbPos, fow, pbLen, 0, FC.TUI, FC.TUI
-      ENDIF
-      IF PG1_EN.TUI  THEN
-        DO WHILE GETSCANLINE < MM.VRES:LOOP
-        PAGE WRITE 0
-        BLIT dx, dy, dx, dy, w, h, 1
       ENDIF
       prev = position
       prevCurs = curs
@@ -394,7 +382,7 @@ FUNCTION TUIgetItem(title AS STRING, subtitle AS STRING, txt() AS STRING) AS STR
     IF k <> "" THEN
       SELECT CASE k
       CASE CHR$(128) 'up
-        IF curs > position THEN
+        IF curs > (position + 1) THEN
           INC curs, -1
         ELSE
           IF position > 0 THEN
@@ -487,7 +475,7 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
     ext = ""
   ENDIF
 
-  cnt = 0
+  cnt = 1
   f = DIR$("", ALL)
   DO WHILE f <> ""
     IF LEFT$(f, 1) <> "." THEN
@@ -512,7 +500,7 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
   ENDIF
   LOCAL STRING fn(cnt)
 
-  cnt = 0 
+  cnt = 1 
   fn(cnt) = "<ROOT>"
   IF path <> "A:/" THEN
     INC cnt
