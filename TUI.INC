@@ -1,4 +1,5 @@
 'Simple TUI, it's prepared for screenshoting
+CONST VERSION.TUI = "0.40"
 
 'SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1), also LOGO (blitnum)
@@ -41,11 +42,16 @@
   '(almost) complete file selector
   'ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
 
+'FUNCTION TUIemptyON(title AS STRING, ww AS INTEGER, hh AS INTEGER) AS STRING
+  'Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)
+
+'SUB TUIemptyOFF(coord AS STRING)
+  'Close empty (BLIT #9)
+
 'SUB TUIwaitForKey
 'SUB TUIwaitForNoKey
   'waits for key or until no key pressed
 
-CONST VERSION.TUI = "0.32"
 DIM INTEGER ON.TUI, X.TUI, Y.TUI, W.TUI, H.TUI 'for screenshot
 
 CONST CURSOR_SPEED.TUI = 300 'cursor blinking speed in ms
@@ -60,19 +66,19 @@ SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   FONT FONT.TUI
   LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
   LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
-  LOCAL INTEGER w = 4*fow + fow * LEN(title) 'minimum width
+  LOCAL INTEGER w = 4*fow + fow*LEN(title) 'minimum width
   LOCAL INTEGER h = foh, i
   LOCAL INTEGER m = BOUND(txt())
  
   FOR i = 0 TO m
     txt(i) = LEFT$(txt(i), MIN(MM.HRES/fow - 4, LEN(txt(i))))
-    w = MAX(4*fow+fow*LEN(txt(i)), w)
+    w = MAX(4*fow + fow*LEN(txt(i)), w)
   NEXT i
-  h = m*foh+5*foh
-  LOCAL INTEGER dx = (MM.HRES-w)\2, dy = (MM.VRES-h)\2 
+  h = m*foh + 5*foh
+  LOCAL INTEGER dx = (MM.HRES - w)\2, dy = (MM.VRES - h)\2 
 
-  BLIT READ #1,dx,dy,w,h 
-  BOX dx+0,dy+0,w,h,0,BC.TUI,BC.TUI
+  BLIT READ #1, dx, dy, w, h 
+  BOX dx + 0, dy + 0, w, h, 0, BC.TUI, BC.TUI
   BOX dx+fow/4,dy+foh/2,w-fow/2,h-foh*3/4,2,FC.TUI,BC.TUI
   TEXT dx+w\2,dy+1," " + title + " ","CT",,,FC.TUI,BC.TUI
   FOR i = 0 TO m
@@ -638,14 +644,16 @@ FUNCTION TUIinput(title AS STRING, txt AS STRING, def AS STRING, en AS STRING) A
   IF k=ESC.TUI THEN TUIinput = ""
 END FUNCTION
 
-FUNCTION TUIemptyON(title AS STRING, w AS INTEGER, h AS INTEGER) AS STRING
+FUNCTION TUIemptyON(title AS STRING, ww AS INTEGER, hh AS INTEGER) AS STRING
   'Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)
 
   FONT FONT.TUI
   LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
+  LOCAL INTEGER w = MAX(4 * fow + fow * LEN(title), 2 * fow + ww) 'minimum width
   LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
-  w = MAX(4*fow + fow*LEN(title), 2*fow + w) 'minimum width
-  h = 3*foh+h
+  LOCAL INTEGER h = 3 * foh + hh 'height
+
+  
   LOCAL INTEGER dx = (MM.HRES-w)\2, dy = (MM.VRES-h)\2 
   
   BLIT READ #9,dx,dy,w,h 
