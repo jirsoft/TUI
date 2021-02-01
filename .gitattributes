@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-*.inc linguist-detectable=false
+# Actually they are MMBasic not VBA, but close enough.
+*.bas linguist-language=VBA
+*.BAS linguist-language=VBA
+*.inc linguist-language=VBA
+*.INC linguist-language=VBA
