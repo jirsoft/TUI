@@ -1,5 +1,5 @@
 'Simple TUI, it's prepared for screenshoting
-CONST VERSION.TUI = "0.42"
+CONST VERSION.TUI = "0.43"
 
 'SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1), also LOGO (blitnum)
@@ -23,7 +23,9 @@ CONST VERSION.TUI = "0.42"
   'Question, returns 1 when OK (ENTER) was pressed, 0 else (BLIT #5)
 
 'FUNCTION TUIinput(title AS STRING, txt AS STRING, def AS STRING, en AS STRING) AS STRING
-  'Input string, returns text, DEL erase all, BACKSPACE 1 char, ENTER to finish (BLIT #6)
+  'Input string, returns text
+  'HOME to begin, END to end, CRSR left + right
+  'SHIFT+DEL erase all, BACKSPACE 1 char left, DEL 1 char right, ENTER to finish (BLIT #6) 
 
 'FUNCTION TUIselect(title AS STRING, txt AS STRING, s AS INTEGER) AS INTEGER
   'Selection checkbox, can select up to 10 choices with keys 0-9 (BLIT #7)
@@ -464,7 +466,7 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
   'once-shot file selector
 
   LOCAL STRING f
-  LOCAL INTEGER i
+  LOCAL INTEGER i, lnt = -1
   LOCAL INTEGER cnt, cntExt = -1
 
   FOR i = 1 TO LEN(ext)
@@ -508,10 +510,10 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
   LOCAL STRING fn(cnt)
 
   cnt = 1 
-  fn(cnt) = "<ROOT>"
+  fn(cnt) = "A<ROOT>"
   IF path <> "A:/" THEN
     INC cnt
-    fn(cnt) = "<UP>"
+    fn(cnt) = "B<UP>"
   ENDIF
 
   f = DIR$("", ALL)
@@ -519,28 +521,34 @@ FUNCTION TUIgetSelect(path AS STRING, ext AS STRING) AS STRING
     IF LEFT$(f, 1) <> "." THEN
       IF MM.INFO(FILESIZE f) < 0 THEN
         INC cnt
-        fn(cnt) = f + " <DIR>"
+        fn(cnt) = "D" + f + " <DIR>"
       ELSEIF ext = "" THEN
         INC cnt
-        fn(cnt) = f
+        fn(cnt) = "F" + f
       ELSE
         FOR i = 0 TO cntExt
           IF UCASE$(RIGHT$(f, LEN(ex(i)))) = ex(i) THEN
             INC cnt
-            fn(cnt) = f
+            fn(cnt) = "F" + f
             EXIT FOR
           ENDIF
         NEXT i
       ENDIF
+      'lnt = MAX(lnt, LEN(fn(cnt)) - 1)
     ENDIF
     f = DIR$()
   LOOP
   SORT fn(),,2
+  FOR i = 1 TO cnt
+    fn(i) = MID$(fn(i), 2)
+  NEXT i 
   TUIgetSelect = TUIgetItem("SELECT " + ext + " FILE", path, fn())
 END FUNCTION
 
 FUNCTION TUIinput(title AS STRING, txt AS STRING, def AS STRING, en AS STRING) AS STRING
-  'Input string, returns text, DEL erase all, BACKSPACE 1 char, ENTER to finish (BLIT #6)
+  'Input string, returns text
+  'HOME to begin, END to end, CRSR left + right
+  'SHIFT+DEL erase all, BACKSPACE 1 char left, DEL 1 char right, ENTER to finish (BLIT #6) 
  
   FONT FONT.TUI
   LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
@@ -618,6 +626,18 @@ FUNCTION TUIinput(title AS STRING, txt AS STRING, def AS STRING, en AS STRING) A
             INC cursorX, -fow
           ENDIF
         ENDIF
+
+      CASE CHR$(134)    'HOME
+        LINE cursorX, cursorY, cursorX + fow, cursorY, 2, BC.TUI
+        cursorX = dx + fow
+
+      CASE CHR$(135)    'END
+        LINE cursorX, cursorY, cursorX + fow, cursorY, 2, BC.TUI
+        cursorX = dx + fow*(LEN(TUIinput) + 1)
+        IF cursorX > dx+w-2*fow THEN
+          INC cursorX, -fow
+        ENDIF
+
 
       CASE ELSE
         IF INSTR(en,k)>0 THEN
