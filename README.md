@@ -67,6 +67,7 @@ FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING
 ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
 
 
+
 FUNCTION TUIemptyON(title AS STRING, ww AS INTEGER, hh AS INTEGER, but AS STRING) AS STRING
 
 Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)
@@ -74,9 +75,11 @@ Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)
 if but is used, then is show instead of "OK"
 
 
+
 SUB TUIemptyOFF(coord AS STRING)
 
 Close empty (BLIT #9)
+
 
 
 SUB TUIwaitForKey
