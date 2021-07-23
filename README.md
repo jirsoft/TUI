@@ -22,7 +22,7 @@ FUNCTION TUIchoice(title AS STRING, txt AS STRING) AS INTEGER
 
 Select one from up to 10 choices with keys 0-9 (BLIT #3)
 
-SUB TUIwarning(title AS STRING, txt AS STRING)
+SUB TUIwarning(title AS STRING, txt AS STRING)<hr>
 
 Simple warning, wait for any key (BLIT #4)
 
