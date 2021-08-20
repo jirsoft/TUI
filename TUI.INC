@@ -1,5 +1,5 @@
 'Simple TUI, it's prepared for screenshoting
-CONST VERSION.TUI = "0.43"
+CONST VERSION.TUI = "0.45"
 
 'SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1), also LOGO (blitnum)
@@ -14,7 +14,7 @@ CONST VERSION.TUI = "0.43"
   'Finish progress (BLIT #2)
 
 'FUNCTION TUIchoice(title AS STRING, txt AS STRING) AS INTEGER
-  'Select one from up to 10 choices with keys 0-9 (BLIT #3)
+  'Select one from up to 10 choices with keys 0-9, cancel=ESC, OK=ENTER (BLIT #3)
 
 'SUB TUIwarning(title AS STRING, txt AS STRING)
   'Simple warning, wait for any key (BLIT #4)
@@ -56,7 +56,6 @@ CONST VERSION.TUI = "0.43"
   'waits for key or until no key pressed
 
 DIM INTEGER ON.TUI, X.TUI, Y.TUI, W.TUI, H.TUI 'for screenshot
-
 CONST CURSOR_SPEED.TUI = 300 'cursor blinking speed in ms
 CONST ESC.TUI = CHR$(27), ENTER.TUI = CHR$(10)
 DIM STRING TICK.TUI = CHR$(232) 'tick character
@@ -147,12 +146,12 @@ SUB TUIwaitingOFF(coord AS STRING)
 END SUB
 
 FUNCTION TUIchoice(title AS STRING, txt AS STRING) AS INTEGER
-  'Select one from up to 10 choices with keys 0-9 (BLIT #3)
+  'Select one from up to 10 choices with keys 0-9, ENTER or ESC to finish (BLIT #3)
   
   FONT FONT.TUI
   LOCAL INTEGER fow = MM.INFO(FONTWIDTH)
   LOCAL INTEGER foh = MM.INFO(FONTHEIGHT)
-  LOCAL INTEGER w = 4*fow + fow*MAX(LEN(title),13) 'minimum 13 chars
+  LOCAL INTEGER w = 4*fow + fow*MAX(LEN(title),25) 'minimum 13 chars
   LOCAL INTEGER i,cnt = 0, h = 5*foh
   LOCAL STRING k, keysEnabled = "0123456789"
   
@@ -161,7 +160,7 @@ FUNCTION TUIchoice(title AS STRING, txt AS STRING) AS INTEGER
   LOOP
   cnt = MIN(cnt, 10)
 
-  keysEnabled = LEFT$(keysEnabled, cnt) + ESC.TUI
+  keysEnabled = LEFT$(keysEnabled, cnt) + ESC.TUI + ENTER.TUI
 
   h = foh*cnt + 4*foh
   FOR i = 1 TO cnt
@@ -178,14 +177,21 @@ FUNCTION TUIchoice(title AS STRING, txt AS STRING) AS INTEGER
   FOR i = 1 TO cnt
     TEXT dx+fow,dy+foh/2+i*foh," " + STR$(i-1) + " " + FIELD$(txt, i, ","),"LT",,,FC.TUI,BC.TUI
   NEXT i
-  TEXT dx+w\2,dy+h-3/2*foh," Press 0-" + STR$(cnt-1) + " ","CT",,,BC.TUI,FC.TUI
+  TEXT dx+w\2,dy+h-3/2*foh," Press 0-" + STR$(cnt-1) + ", ENTER or ESC ","CT",,,BC.TUI,FC.TUI
   ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
 
   DO
     k = INKEY$
   LOOP WHILE INSTR(keysEnabled,k)=0 
   DO:LOOP WHILE INKEY$<>"" 
-  TUIchoice = ASC(k)-48
+  IF k=ESC.NC THEN
+    TUIchoice = -ASC(ESC.NC)
+  ELSEIF k=ENTER.NC THEN
+    TUIchoice = -ASC(ENTER.NC)
+  ELSE
+    TUIchoice = ASC(k)-48
+  ENDIF
+
   ON.TUI = 0  
   BLIT WRITE #3,dx,dy
   BLIT CLOSE #3
@@ -291,7 +297,7 @@ FUNCTION TUIselect(title AS STRING, txt AS STRING, s AS INTEGER) AS INTEGER
     TEXT dx+fow,dy+foh/2 + i*foh," " + STR$(i-1) + " " + mark + " " + FIELD$(txt, i, ","),"LT",,,FC.TUI,BC.TUI
   NEXT i
   TEXT dx+w\2,dy+h-3*foh," Set/Unset with 0-" + STR$(cnt-1) + " ","CT",,,FC.TUI,BC.TUI
-  TEXT dx+w\2,dy+h-3/2*foh,"  OK  ","CT",,,BC.TUI,FC.TUI
+  TEXT dx+w\2,dy+h-3/2*foh," ENTER OK, ESC cancel ","CT",,,BC.TUI,FC.TUI
   ON.TUI = 1: X.TUI = dx: Y.TUI = dy: W.TUI = w: H.TUI = h 'for screenshot
 
   DO
@@ -320,8 +326,8 @@ FUNCTION TUIselect(title AS STRING, txt AS STRING, s AS INTEGER) AS INTEGER
 END FUNCTION
 
 SUB TUIwaitForKey
-  DO:LOOP WHILE INKEY$=""
   TUIwaitForNoKey
+  DO:LOOP WHILE INKEY$=""
 END SUB
 
 SUB TUIwaitForNoKey
