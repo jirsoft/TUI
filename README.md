@@ -41,9 +41,10 @@ helper for file selector
 once-shot file selector<br>
 ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
 <br><br>
-<b>FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING</b><br>
+<b>FUNCTION TUIfileSelect(path AS STRING, ext AS STRING, root AS STRING) AS STRING</b><br>
 (almost) complete file selector<br>
 ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
+when root<>"", then it's used as highest possible level for going <UP> and for <ROOT>
 <br><br>
 <b>FUNCTION TUIemptyON(title AS STRING, ww AS INTEGER, hh AS INTEGER, but AS STRING) AS STRING</b><br>
 Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)<br>
@@ -58,6 +59,9 @@ waits for key or until no key pressed
 <br><br>
   
   
+#### v0.46
+	added optional root parameter to TUIfileSelect
+
 #### v0.45
 	TUIchoice now returns 0-x, -13 (ENTER) or -27 (ESC), used for Napoleon Commander
 	small bugfix
