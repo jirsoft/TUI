@@ -43,7 +43,7 @@ ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (se
 <br><br>
 <b>FUNCTION TUIfileSelect(path AS STRING, ext AS STRING, root AS STRING) AS STRING</b><br>
 (almost) complete file selector<br>
-ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
+ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)<br>
 when root<>"", then it's used as highest possible level for going <UP> and for <ROOT>
 <br><br>
 <b>FUNCTION TUIemptyON(title AS STRING, ww AS INTEGER, hh AS INTEGER, but AS STRING) AS STRING</b><br>
