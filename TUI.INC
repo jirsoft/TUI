@@ -1,5 +1,5 @@
 'Simple TUI, it's prepared for screenshoting
-CONST VERSION.TUI = "0.45"
+CONST VERSION.TUI = "0.46"
 
 'SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1), also LOGO (blitnum)
@@ -40,9 +40,10 @@ CONST VERSION.TUI = "0.45"
   'once-shot file selector
   'ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
 
-'FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING
+'FUNCTION TUIfileSelect(path AS STRING, ext AS STRING, root AS STRING) AS STRING
   '(almost) complete file selector
   'ext can be also more extensiions separated by coma (ext = ".BAS,.INC") or "" (select all)
+  'when root<>"", then it's used as highest possible level for going <UP> and for <ROOT>
 
 'FUNCTION TUIemptyON(title AS STRING, ww AS INTEGER, hh AS INTEGER, but AS STRING) AS STRING
   'Shows empty dialog (space), returns coordinates as string "X,Y" (BLIT #9)
@@ -184,10 +185,10 @@ FUNCTION TUIchoice(title AS STRING, txt AS STRING) AS INTEGER
     k = INKEY$
   LOOP WHILE INSTR(keysEnabled,k)=0 
   DO:LOOP WHILE INKEY$<>"" 
-  IF k=ESC.NC THEN
-    TUIchoice = -ASC(ESC.NC)
-  ELSEIF k=ENTER.NC THEN
-    TUIchoice = -ASC(ENTER.NC)
+  IF k=ESC.TUI THEN
+    TUIchoice = -ASC(ESC.TUI)
+  ELSEIF k=ENTER.TUI THEN
+    TUIchoice = -ASC(ENTER.TUI)
   ELSE
     TUIchoice = ASC(k)-48
   ENDIF
@@ -446,7 +447,7 @@ FUNCTION TUIgetParent(s AS STRING) AS STRING
   ENDIF
 END FUNCTION
 
-FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING
+FUNCTION TUIfileSelect(path AS STRING, ext AS STRING, root AS STRING) AS STRING
   '(almost) complete file selector
 
   CHDIR path
@@ -454,11 +455,17 @@ FUNCTION TUIfileSelect(path AS STRING, ext AS STRING) AS STRING
   DO WHILE fs
     TUIfileSelect = TUIgetSelect(path, ext)
     IF TUIfileSelect = "<ROOT>" THEN
-      path = "A:/"
+      IF root="" THEN
+        path = "A:/"
+      ELSE
+        path = root
+      ENDIF
       CHDIR path
     ELSEIF TUIfileSelect = "<UP>" THEN
-      path = TUIgetParent(path)
-      CHDIR path
+      IF root="" OR path<>root THEN
+        path = TUIgetParent(path)
+        CHDIR path
+      ENDIF
     ELSEIF RIGHT$(TUIfileSelect, 6) = " <DIR>" THEN
       path = path + LEFT$(TUIfileSelect, LEN(TUIfileSelect) - 6) + "/"
       CHDIR path
