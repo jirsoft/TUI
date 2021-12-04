@@ -1,5 +1,13 @@
 'Simple TUI, it's prepared for screenshoting
-CONST VERSION.TUI = "0.46"
+CONST VERSION.TUI = "0.50"
+
+
+'FUNCTION TUImenu(m() AS STRING) AS INTEGER
+  'Open menu on top of the screen, let user select (arrows/ENTER) or escape (BLIT #10+#11)
+  'returns either selected menu item (selected column*100+row) or -1 as escape
+  'm(0)="MAIN MENU 0,Submenu 01,Submenu 02,...,Submenu 0r)"
+  '...
+  'm(c)="MAIN MENU r,Submenu c1,Submenu c2,...,Submenu cr)"
 
 'SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1), also LOGO (blitnum)
@@ -62,6 +70,7 @@ CONST ESC.TUI = CHR$(27), ENTER.TUI = CHR$(10)
 DIM STRING TICK.TUI = CHR$(232) 'tick character
 DIM INTEGER BC.TUI = RGB(YELLOW), FC.TUI = RGB(GRAY), IC.TUI = RGB(CYAN) 'default colors
 DIM INTEGER FONT.TUI = 8 'default font
+DIM INTEGER MENU_ON.TUI = 0  '1 menu is shown, 0 menu is hidden
 
 SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)
   'Shows more lines of info text (BLIT #1)
@@ -714,4 +723,123 @@ SUB TUIemptyOFF(coord AS STRING)
   BLIT CLOSE #9
 END SUB
 
+FUNCTION TUImenu(m() AS STRING) AS INTEGER
+  'Open menu on top of the screen, let user select (arrows/ENTER) or escape (BLIT #10+#11)
+  'returns either selected menu item (selected column*100+row) or -1 as escape
+  'm(0)="MAIN MENU 0,Submenu 01,Submenu 02,...,Submenu 0r)"
+  '...
+  'm(c)="MAIN MENU r,Submenu c1,Submenu c2,...,Submenu cr)"
 
+  MENU_ON.TUI = 1
+  FONT FONT.TUI
+  LOCAL INTEGER i, j, xx, yy, fow = MM.INFO(FONTWIDTH), foh = MM.INFO(FONTHEIGHT)
+  LOCAL INTEGER xp(BOUND(m())), yp(BOUND(m())), wp(BOUND(m())), mx = 0, my = 0, dx, dy = foh, w, h
+  LOCAL STRING mm, k
+
+  BLIT READ #10, 0, 0, MM.HRES, foh
+  BOX 0, 0, MM.HRES, foh, 0, BC.TUI, BC.TUI
+  xx = 2*fow
+  H.TUI = 0
+  FOR i = 0 TO BOUND(m())
+    xp(i) = xx
+    mm = m(i)
+
+    yp(i) = -1
+    yy = 1
+    DO 
+      INC yp(i)
+      yy = INSTR(yy, mm, ",") + 1
+    LOOP WHILE yy>1
+    wp(i) = 0
+    FOR j = 1 TO yp(i)
+      wp(i) = MAX(wp(i),fow*(LEN(FIELD$(m(i), j+1, ",")) + 3))
+    NEXT j
+    H.TUI = MAX(H.TUI, yp(i)*foh + 1.5*foh)
+    mm = FIELD$(m(i), 1, ",")
+    TEXT xp(i), 0, mm, "LT", FONT.TUI, 1, FC.TUI, BC.TUI
+    INC xx, fow*(LEN(mm) + 3)
+  NEXT i
+
+  ON.TUI = 1: X.TUI = 0: Y.TUI = 0: W.TUI = MM.HRES 'for screenshot
+  TEXT xp(mx)-fow, my*foh, " " + FIELD$(m(mx), 1, ",") + " ", "LT", FONT.TUI, 1, BC.TUI, FC.TUI
+  DO
+    k = INKEY$
+    SELECT CASE k
+      CASE CHR$(128)    'UP
+        IF my>0 THEN 'not in main menu
+          IF my=1 THEN 'exit submenu
+            BLIT WRITE #11, dx, dy
+            BLIT CLOSE #11
+            my = 0
+          ELSE
+            mm = FIELD$(m(mx), my+1, ",")
+            TEXT dx+0.5*fow, my*foh, " " + mm + SPACE$(wp(mx)/fow-LEN(mm)-2), "LT", FONT.TUI, 1, FC.TUI, BC.TUI
+            INC my, -1
+            mm = FIELD$(m(mx), my+1, ",")
+            TEXT dx+0.5*fow, my*foh, " " + mm + SPACE$(wp(mx)/fow-LEN(mm)-2), "LT", FONT.TUI, 1, BC.TUI, FC.TUI 
+          ENDIF                    
+        ENDIF
+
+      CASE CHR$(129)    'BOTTOM
+        IF my<yp(mx) THEN
+          IF my=0 THEN 'show submenu
+            dx = xp(mx)-1.5*fow
+            w = wp(mx)
+            h = yp(mx)*foh + 0.5*fow
+            BLIT READ #11, dx, dy, w, h
+            BOX dx, dy, w, h, 0, BC.TUI, BC.TUI
+            FOR i = 1 TO yp(mx)
+              TEXT dx+1.5*fow, i*foh, FIELD$(m(mx), i+1, ","), "LT", FONT.TUI, 1, FC.TUI, BC.TUI
+            NEXT i
+            my = 1
+          ELSE
+            mm = FIELD$(m(mx), my+1, ",")
+            TEXT dx+0.5*fow, my*foh, " " + mm + SPACE$(wp(mx)/fow-LEN(mm)-2), "LT", FONT.TUI, 1, FC.TUI, BC.TUI
+            INC my
+          ENDIF
+          mm = FIELD$(m(mx), my+1, ",")
+          TEXT dx+0.5*fow, my*foh, " " + mm + SPACE$(wp(mx)/fow-LEN(mm)-2), "LT", FONT.TUI, 1, BC.TUI, FC.TUI
+        ENDIF
+
+      CASE CHR$(130)    'LEFT
+        IF mx>0 THEN
+          IF my>0 THEN
+            BLIT WRITE #11, dx, dy
+            BLIT CLOSE #11
+            my = 0
+          ENDIF
+          TEXT xp(mx)-fow, 0, " " + FIELD$(m(mx), 1, ",") + " ", "LT", FONT.TUI, 1, FC.TUI, BC.TUI
+          INC mx, -1
+          TEXT xp(mx)-fow, 0, " " + FIELD$(m(mx), 1, ",") + " ", "LT", FONT.TUI, 1, BC.TUI, FC.TUI
+        ENDIF
+
+      CASE CHR$(131)    'RIGHT
+        IF mx<BOUND(m()) THEN
+          IF my>0 THEN
+            BLIT WRITE #11, dx, dy
+            BLIT CLOSE #11
+            my = 0
+          ENDIF
+          TEXT xp(mx)-fow, 0, " " + FIELD$(m(mx), 1, ",") + " ", "LT", FONT.TUI, 1, FC.TUI, BC.TUI
+          INC mx
+          TEXT xp(mx)-fow, 0, " " + FIELD$(m(mx), 1, ",") + " ", "LT", FONT.TUI, 1, BC.TUI, FC.TUI
+        ENDIF
+    END SELECT
+  LOOP WHILE k<>ESC.TUI AND k<>ENTER.TUI
+
+  TUIwaitForNoKey
+  ON.TUI = 0
+  IF my>0 THEN 'close submenu if open
+    BLIT WRITE #11, dx, dy
+    BLIT CLOSE #11
+  ENDIF
+  'close main menu
+  BLIT WRITE #10, 0, 0
+  BLIT CLOSE #10
+  IF k = ENTER.TUI THEN 
+    TUImenu = mx*100 + my
+  ELSE
+    TUImenu = -1
+  ENDIF
+  MENU_ON.TUI = 0
+END FUNCTION
