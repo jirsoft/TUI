@@ -2,6 +2,13 @@
  Simple TUI library for CMM2
 
 
+<b>FUNCTION TUImenu(menu() AS STRING) AS INTEGER</b><br>
+Open menu on top of the screen, let user select (arrows/ENTER) or escape (BLIT #10+#11)
+returns either selected menu item (selected column*100+row) or -1 as escape<br>
+m(0)="MAIN MENU 0,Submenu 01,Submenu 02,...,Submenu 0r)"<br>
+...<br>
+m(c)="MAIN MENU r,Submenu c1,Submenu c2,...,Submenu cr)"
+<br><br>
 <b>SUB TUIinfo(title AS STRING, txt() AS STRING, logo AS INTEGER)</b><br>
 Shows more lines of info text (BLIT #1), also LOGO (blitnum)
 <br><br>
@@ -59,6 +66,9 @@ waits for key or until no key pressed
 <br><br>
   
   
+#### v0.50
+	added function TUImenu
+
 #### v0.46
 	added optional root parameter to TUIfileSelect
 
